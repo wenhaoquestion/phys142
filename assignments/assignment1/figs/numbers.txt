@@ -1,0 +1,13 @@
+TSN = 212345678,  x_start = 0.89
+A: max|K_8eps psi0 - K(8eps) psi0| / max|K(8eps) psi0| = 1.62e-04
+B: max|<x> - x_start cos t| = 1.04e-03
+B: <x>(T0) = 0.889175
+B: norm stays within [0.9994040409, 0.9999999998]
+C: <K>(0) = 0.499911 (exact 0.500000),  <V>(0) = 0.521050 (exact 0.521050)
+C: <E> exact = 1.021050; numerical <E> in [1.017850, 1.021438]
+C: <K> range [0.4956, 0.5238],  <V> range [0.4953, 0.5223]
+F: eps=T0/16, N_D=600: N(T0) = 9.9946e-01, N after 1 step = 1.0000e+00, growth/step ~ 1.0000
+F: eps=T0/512, N_D=600: N(T0) = 1.1479e+258, N after 1 step = 1.0382e+00, growth/step ~ 3.1917
+F: eps=T0/128, N_D=150: N(T0) = 4.0953e+51, N after 1 step = 1.0423e+00, growth/step ~ 2.5306
+F scan N_D=600: first n with |N(T0)-1| > 1e-3: n = 372 (eps = 0.0169);  pi estimate eps_min = 0.0340 = T0/185;  2pi estimate eps_min = 0.0170 = T0/370
+F scan N_D=1200: first n with |N(T0)-1| > 1e-3: n = 744 (eps = 0.0084);  pi estimate eps_min = 0.0170 = T0/370;  2pi estimate eps_min = 0.0085 = T0/740

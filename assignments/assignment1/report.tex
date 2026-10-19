@@ -2,143 +2,270 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
-\usepackage{verbatim}
-\usepackage{xcolor}
-\usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
 \usepackage{float}
+\usepackage{listings}
+\lstset{basicstyle=\footnotesize\ttfamily, breaklines=true, columns=fullflexible, keepspaces=true, frame=single}
 
-% Numbers produced by assignment1.ipynb (re-run the notebook, then recompile)
-\input{figs/numbers.tex}
-
-\newcommand{\ev}[1]{\langle #1\rangle}
-
-\title{PHYS 142/242 Assignment 1: Harmonic Oscillator Path Integral}
-\author{\textcolor{red}{[Your name]} \quad TSN: \TSN}
+\title{PHYS 142/242 Assignment 1}
+\author{Wing Huang \quad TSN: 200348262}
 \date{}
 
 \begin{document}
 \maketitle
-\vspace{-1.5em}
+
 \begin{center}
-  \fbox{\large $x_{\rm start} = \xstart$}
+  \Large $x_{\rm start} = 0.81$
 \end{center}
 
-\noindent
-Units: $m=\omega=\hbar=1$, $T_0=2\pi$. Grid: $N_D+1=601$ points on $[-4,4]$, $\Delta x=8/600$; time step $\epsilon=T_0/128$.
-All code is in \texttt{assignment1.ipynb}. It writes every figure below, \texttt{animation.gif}, and \texttt{results.json}.
-States are evolved as $\psi_{n+1}=\Delta x\,K_\epsilon\,\psi_n$, where $(K_\epsilon)_{ba}=K(x_b,\epsilon;x_a,0)$ is Eq.~(4).
-The state is never renormalized.
+\section*{Setup}
+\begin{lstlisting}[language=Python]
+import os
 
-%--------------------------------------------------------------------
-\section*{Problem A: $K_{8\epsilon}$}
-Using Eq.~(5) with $N=8$, $K_{8\epsilon}=(\Delta x)^7K_\epsilon^8$ (one factor of $\Delta x$ for each of the 7 intermediate integrals).
-Truncated NumPy output (\texttt{print(K\_8eps)}):
-{\footnotesize
-\verbatiminput{figs/K8eps.txt}}
-\noindent
-As expected, the matrix is symmetric: $K(x_b,x_a)=K(x_a,x_b)$.
-Check: acting on $\psi_0$, $\Delta x\,K_{8\epsilon}\psi_0$ agrees with $\Delta x\,K(8\epsilon)\psi_0$ from Eq.~(4) at $t=8\epsilon$ to a relative error of $\errA$.
-Comparing the two matrices element by element is not a meaningful test. A point-source kernel spreads over every $x$ and every momentum, so its entries depend on where the box ends and on the grid's momentum cutoff $\pi/\Delta x$. On a smooth, localized state those effects drop out.
+for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(var, "4")
 
-%--------------------------------------------------------------------
-\section*{Problem B: $\ev{x}$ over one period}
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.62\textwidth]{figs/mean_x.pdf}
-  \caption{$\ev{x}=\Delta x\sum_i x_i|\Psi_t(x_i)|^2$ over one period (dots), with the classical trajectory $x_{\rm start}\cos t$ (line).}
-\end{figure}
-\noindent
-As Ehrenfest's theorem requires for a quadratic potential, $\ev{x}$ follows the classical trajectory exactly. The maximum deviation is $\devX$, and after one period $\ev{x}(T_0)=\xmeanEnd$.
-The small residual comes from the hard walls at $x=\pm4$. Around $t=T_0/4$ and $3T_0/4$ the packet's tails reach the walls and are cut off. The norm drops to $\normMin$ by $t=T_0$. Repeating the run with walls at $\pm6$ (same $\Delta x$) brings the norm loss down to $\sim3\times10^{-8}$.
+import json
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 
-%--------------------------------------------------------------------
-\section*{Problem C: $\ev{E}$, $\ev{K}$, $\ev{V}$}
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.62\textwidth]{figs/energy.pdf}
-  \caption{Mean total, kinetic, and potential energy over one period. $\ev{V}=\Delta x\sum_i\tfrac12x_i^2P_t(x_i)$ and $\ev{K}=\tfrac12\Delta x\sum_i|\partial_x\Psi_t(x_i)|^2$ (Eq.~8), with the derivative taken by central differences.}
-\end{figure}
-\noindent
-Analytically, the initial Gaussian has $\ev{K}(0)=\alpha/4=\Kexact$ and $\ev{V}(0)=\tfrac12x_{\rm start}^2+\tfrac1{4\alpha}=\Vexact$, so $\ev{E}=\Eexact$.
-Numerically, $\ev{K}(0)=\Kzero$ and $\ev{V}(0)=\Vzero$, and $\ev{E}$ stays in $[\Emin,\Emax]$: conserved to $\Edev\%$.
-That small drift is again wall leakage: the probability lost near $|x|=4$ carries $V\approx8$ per unit probability. With walls at $\pm6$ the drift drops to $\sim10^{-4}$.
+os.makedirs("figs", exist_ok=True)
 
-$\ev{K}$ and $\ev{V}$ trade energy back and forth at frequency $2\omega$.
-The reason is that $\alpha=2\neq m\omega/\hbar=1$: the initial state is narrower than the ground state (a squeezed state).
-The width therefore ``breathes'' twice per period. The position variance is $1/(2\alpha)=0.25$ at $t=0,T_0/2,T_0$ and $\alpha/2=1$ at $t=T_0/4,3T_0/4$ (numerically $0.25$ and $0.996$).
-This breathing sits on top of the classical exchange $\tfrac12x_{\rm start}^2\cos^2t \leftrightarrow \tfrac12x_{\rm start}^2\sin^2t$, which also has frequency $2\omega$.
+TSN = "200348262"
+d = int(TSN[-2:])
+s = int(TSN[-3])
+x_start = (-1) ** s * (0.5 + d / 200)
 
-%--------------------------------------------------------------------
-\section*{Problem D: amplitudes at $t=mT_0/16$}
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.49\textwidth]{figs/snapshots.pdf}\hfill
-  \includegraphics[width=0.49\textwidth]{figs/amplitudes.pdf}
-  \caption{Left: $P_t(x)=|\Psi_t(x)|^2$ at $t=mT_0/16$, $m=0,\dots,8$, with $V(x)=x^2/2$ superimposed. Right: $\mathrm{Re}\,\Psi_t$ (solid) and $\mathrm{Im}\,\Psi_t$ (dotted) at the same times.}
-\end{figure}
-\noindent
-Over half a period the packet moves from $x_{\rm start}$ to $-x_{\rm start}$, as in Problem B.
-It broadens to its maximum width at $t=T_0/4$ (where it is centered at $x=0$) and then refocuses to its original width at $t=T_0/2$.
-In the right panel, the phase develops a linear term $e^{i\ev{p}x}$ while the packet moves and a quadratic chirp while it breathes.
-At $t=T_0/2$ the state is purely imaginary. It equals $-i\,\Psi_0(-x)$ (numerically to $<1\%$, the difference being wall leakage), because $e^{-iHT_0/2}=-i\,\hat\Pi$ with $\hat\Pi$ the parity operator.
+T0 = 2 * np.pi
+alpha = 2.0
+N_D = 600
+N_steps = 128
+eps = T0 / N_steps
 
-%--------------------------------------------------------------------
-\section*{Problem E: animation}
-The animation is \texttt{animation.gif}, submitted with the code. It has 129 frames, one per time step $\epsilon=T_0/128$ from $t=0$ to $T_0$.
-It shows $\mathrm{Re}\,\Psi$, $\mathrm{Im}\,\Psi$, and $|\Psi|$ together with $V(x)$. Every 16th frame is shown below.
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.85\textwidth]{figs/anim_frames.pdf}
-  \caption{Frames $0,16,\dots,128$ of \texttt{animation.gif}. After one full period, $|\Psi|$ returns to its initial shape and $\Psi(T_0)=-\Psi_0$, since $e^{-iHT_0}=e^{-2\pi i(n+1/2)}=-1$ for every eigenstate.}
-\end{figure}
 
-%--------------------------------------------------------------------
-\section*{Problem F (bonus): norm without renormalization}
-\paragraph{Prediction (made before running).}
-The phase of $K_\epsilon$ is $\phi=[(x_a^2+x_b^2)\cos\epsilon-2x_ax_b]/(2\sin\epsilon)$. As a function of $x_a$ it oscillates with local wavenumber
+def make_grid(n_d):
+    x = np.linspace(-4.0, 4.0, n_d + 1)
+    return x, x[1] - x[0]
+
+
+def initial_psi(x):
+    return ((alpha / np.pi) ** 0.25 * np.exp(-alpha / 2 * (x - x_start) ** 2)).astype(np.complex128)
+
+
+def propagator(x, t):
+    xb = x[:, None]
+    xa = x[None, :]
+    return np.sqrt(1 / (2j * np.pi * np.sin(t))) * np.exp(
+        1j * ((xa**2 + xb**2) * np.cos(t) - 2 * xa * xb) / (2 * np.sin(t)))
+
+
+def evolve(psi0, K, dx, n_steps):
+    psi = np.empty((n_steps + 1, psi0.size), dtype=np.complex128)
+    psi[0] = psi0
+    for n in range(n_steps):
+        psi[n + 1] = dx * K @ psi[n]
+    return psi
+
+
+x, dx = make_grid(N_D)
+t = np.arange(N_steps + 1) * eps
+print("x_start =", x_start)
+\end{lstlisting}
+
+\section*{Problem A}
 \[
-  k(x_a,x_b)=\left|\frac{\partial\phi}{\partial x_a}\right|=\frac{|x_a\cos\epsilon-x_b|}{\sin\epsilon}\;\lesssim\;\frac{8}{\sin\epsilon}\quad\text{on }[-4,4].
+  K_{8\epsilon} = (\Delta x)^7 K_\epsilon^8,
+  \qquad (K_\epsilon)_{ba} = K(x_b, \epsilon; x_a, 0),
+  \qquad \epsilon = T_0/128,\ \Delta x = 8/600.
 \]
-The sum over $x_a$ can only represent the integral if $\Delta x$ resolves these oscillations.
-A Nyquist-type estimate (phase step $k\Delta x<\pi$) gives $8\Delta x/\sin\epsilon\approx0.28$ for (i), $8.7$ for (ii), and $8.7$ for (iii).
-So I predicted that \textbf{(ii) and (iii) fail and (i) works}. The main run ($\epsilon=T_0/128$, $N_D=600$) gives $2.2$ and is fine.
-Note the counterintuitive direction: a \emph{smaller} time step makes things worse, because $K_\epsilon$ oscillates faster as $\epsilon\to0$, where it approaches a $\delta$-function.
+\begin{footnotesize}
+\begin{verbatim}
+[[-0.05955846+0.0178667j  -0.0757611 +0.0217024j  -0.07967385+0.05414053j
+  ... -0.46505982-0.30932634j -0.35439299-0.42735575j
+  -0.21687407-0.50917202j]
+ [-0.0757611 +0.0217024j  -0.0896081 +0.03330227j -0.08308486+0.06724787j
+  ... -0.53404108-0.16837676j -0.46141968-0.31131639j
+  -0.35439299-0.42735575j]
+ [-0.07967385+0.05414053j -0.08308486+0.06724787j -0.06226964+0.09303051j
+  ... -0.56407376-0.01040964j -0.53404108-0.16837676j
+  -0.46505982-0.30932634j]
+ ...
+ [-0.46505982-0.30932634j -0.53404108-0.16837676j -0.56407376-0.01040964j
+  ... -0.06226964+0.09303051j -0.08308486+0.06724787j
+  -0.07967385+0.05414053j]
+ [-0.35439299-0.42735575j -0.46141968-0.31131639j -0.53404108-0.16837676j
+  ... -0.08308486+0.06724787j -0.0896081 +0.03330227j
+  -0.0757611 +0.0217024j ]
+ [-0.21687407-0.50917202j -0.35439299-0.42735575j -0.46505982-0.30932634j
+  ... -0.07967385+0.05414053j -0.0757611 +0.0217024j
+  -0.05955846+0.0178667j ]]
+\end{verbatim}
+\end{footnotesize}
+
+\begin{lstlisting}[language=Python]
+K_eps = propagator(x, eps)
+K_8eps = dx**7 * np.linalg.matrix_power(K_eps, 8)
+print(K_8eps)
+\end{lstlisting}
+
+\section*{Problem B}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{figs/mean_x.pdf}
+  \caption{$\langle x\rangle$ versus $t$ over one period $T_0 = 2\pi$.}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+psi = evolve(initial_psi(x), K_eps, dx, N_steps)
+P = np.abs(psi) ** 2
+x_mean = (x * P).sum(axis=1) * dx
+
+plt.figure(figsize=(6, 4))
+plt.plot(t, x_mean)
+plt.xlabel("time $t$")
+plt.ylabel(r"$\langle x \rangle$")
+plt.tight_layout()
+plt.savefig("figs/mean_x.pdf")
+plt.show()
+\end{lstlisting}
+
+\section*{Problem C}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.65\textwidth]{figs/energy.pdf}
+  \caption{$\langle E\rangle$, $\langle K\rangle$, and $\langle V\rangle$ versus $t$.}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+V = (0.5 * x**2 * P).sum(axis=1) * dx
+K = (0.5 * np.abs(np.gradient(psi, dx, axis=1)) ** 2).sum(axis=1) * dx
+E = K + V
+
+plt.figure(figsize=(6, 4))
+plt.plot(t, E, label=r"$\langle E \rangle$")
+plt.plot(t, K, label=r"$\langle K \rangle$")
+plt.plot(t, V, label=r"$\langle V \rangle$")
+plt.ylim(bottom=0)
+plt.xlabel("time $t$")
+plt.ylabel("energy")
+plt.legend()
+plt.tight_layout()
+plt.savefig("figs/energy.pdf")
+plt.show()
+\end{lstlisting}
+
+\section*{Problem D}
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{figs/snapshots.pdf}
+  \caption{$P_t(x) = |\Psi_t(x)|^2$ at $t = mT_0/16$, $m = 0, \dots, 8$.}
+\end{figure}
+
+\begin{lstlisting}[language=Python]
+P_list = [P[8 * m] for m in range(9)]
+
+plt.figure(figsize=(7, 4.5))
+for m, P_t in enumerate(P_list):
+    plt.plot(x, P_t, color=plt.cm.viridis(m / 9), label=f"$t = {m}T_0/16$")
+plt.xlim(-3, 3)
+plt.xlabel("$x$")
+plt.ylabel(r"$P_t(x) = |\Psi_t(x)|^2$")
+plt.legend(fontsize=8)
+plt.tight_layout()
+plt.savefig("figs/snapshots.pdf")
+plt.show()
+\end{lstlisting}
+
+\section*{Problem E}
+The animation is saved as \texttt{animation.gif} in the zip file.
+
+\begin{lstlisting}[language=Python]
+fig, ax = plt.subplots(figsize=(6, 4))
+line_re, = ax.plot([], [], label=r"Re $\Psi$")
+line_im, = ax.plot([], [], label=r"Im $\Psi$")
+line_abs, = ax.plot([], [], "k", label=r"$|\Psi|$")
+amp = np.abs(psi).max()
+ax.set_xlim(-3, 3)
+ax.set_ylim(-1.1 * amp, 1.1 * amp)
+ax.set_xlabel("$x$")
+ax.set_ylabel(r"$\Psi_t(x)$")
+ax.legend(loc="upper right")
+
+
+def update(n):
+    line_re.set_data(x, psi[n].real)
+    line_im.set_data(x, psi[n].imag)
+    line_abs.set_data(x, np.abs(psi[n]))
+    ax.set_title(f"$t = {n}T_0/128$")
+    return line_re, line_im, line_abs
+
+
+FuncAnimation(fig, update, frames=N_steps + 1).save("animation.gif", writer=PillowWriter(fps=20))
+plt.close(fig)
+\end{lstlisting}
+
+\section*{Problem F}
+\textbf{Prediction.}
+As a function of $x_a$, the phase of $K_\epsilon(x_b, x_a)$ changes at the rate
+\[
+  \left|\frac{\partial \phi}{\partial x_a}\right| = \frac{|x_a \cos\epsilon - x_b|}{\sin\epsilon} \lesssim \frac{8}{\sin\epsilon}.
+\]
+The method requires $\Delta x$ to resolve this oscillation.
+With $8\Delta x/\sin\epsilon$ as a measure of the phase change per grid step, the three cases give $0.28$ for (i), $8.7$ for (ii), and $8.7$ for (iii).
+I therefore predict that (ii) and (iii) fail and (i) works.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=0.49\textwidth]{figs/norm.pdf}\hfill
-  \includegraphics[width=0.49\textwidth]{figs/norm_scan.pdf}
-  \caption{Left: $\mathcal N(t)$ for the three cases (log scale). Right: $|\mathcal N(T_0)-1|$ after one period vs.\ $\epsilon=T_0/n$, for $N_D=600$ and $1200$. Dotted lines: phase step $\pi$ per $\Delta x$. Dashed lines: phase step $2\pi$ per $\Delta x$. Values are capped at $10^{20}$ for plotting.}
+  \includegraphics[width=0.65\textwidth]{figs/norm.pdf}
+  \caption{$\mathcal{N}(t) = \Delta x \sum_i |\Psi_t(x_i)|^2$ without renormalization.}
 \end{figure}
 
-\paragraph{Results.}
-The prediction holds.
-\begin{itemize}
-  \item Case (i) stays at $\mathcal N(T_0)=\normI$; the only loss is the wall leakage from Problem B.
-  \item Case (ii) reaches $\mathcal N(T_0)=\normII$.
-  \item Case (iii) reaches $\mathcal N(T_0)=\normIII$.
-\end{itemize}
-The two failing runs grow geometrically: a straight line on the log plot, by a factor $\approx3.2$ and $\approx2.5$ per step.
-Once the kernel is undersampled, $\Delta x\,K_\epsilon$ is no longer a unitary matrix. Repeated application then amplifies its eigenvector with $|\lambda|>1$ exponentially.
+\noindent
+Case (i) keeps $\mathcal{N}(T_0) = 0.9995$.
+Case (ii) grows to $\mathcal{N}(T_0) = 7.4\times10^{257}$, and case (iii) to $2.6\times10^{51}$.
 
-\paragraph{Explanation and smallest time step.}
-The $\pi$ criterion turns out to be conservative by a factor of 2.
-Poisson summation explains why: $\Delta x\sum_jf(x_j)=\sum_m\int f(x)\,e^{2\pi imx/\Delta x}\,dx$.
-For $f=K_\epsilon\Psi$, the alias terms ($m\neq0$) oscillate rapidly and cancel, unless they have a stationary point. That happens when $k$ reaches $2\pi/\Delta x$ somewhere on the grid.
-The condition for the method to work is therefore
+For small $\epsilon$, $K_\epsilon$ oscillates faster in $x_a$, and in the limit $\epsilon \to 0$ it approaches a $\delta$-function.
+When the phase change per grid step becomes too large, the sum over the grid no longer approximates the integral.
+$\Delta x\,K_\epsilon$ is then no longer unitary, and the norm grows exponentially with every step.
+
+By Poisson summation, the grid sum fails once $|\partial\phi/\partial x_a|$ reaches $2\pi/\Delta x$ somewhere on the grid.
+The condition for the method to work is $8\Delta x/\sin\epsilon < 2\pi$, i.e.
 \[
-  \frac{8\,\Delta x}{\sin\epsilon} < 2\pi
-  \quad\Longrightarrow\quad
-  \epsilon_{\min}\approx\frac{4\Delta x}{\pi}=\frac{32}{\pi N_D}.
+  \epsilon_{\min} \approx \frac{4\Delta x}{\pi} = \frac{32}{\pi N_D}.
 \]
-For $N_D=600$ this gives $\epsilon_{\min}\approx0.017\approx T_0/370$. The scan finds the first failure at $\epsilon=T_0/\nFailSix$.
+For $N_D = 600$ this gives $\epsilon_{\min} \approx 0.017 \approx T_0/370$; numerically, the first failure is at $\epsilon = T_0/372$.
+Doubling $N_D$ halves $\epsilon_{\min}$: the estimate is $T_0/740$ for $N_D = 1200$, and the first numerical failure is at $T_0/744$.
 
-Doubling $N_D$ halves $\Delta x$, which halves $\epsilon_{\min}$. The prediction is $T_0/740$ for $N_D=1200$, and the scan finds $T_0/\nFailTwelve$.
-In other words, a finer time step must be paired with a proportionally finer grid: $\epsilon_{\min}\propto\Delta x\propto 1/N_D$.
-There is no lower limit on $\epsilon$ from accuracy, since $K_\epsilon$ is exact for any $\epsilon$. The only approximation is the discretization of $x$.
+\begin{lstlisting}[language=Python]
+def norm_vs_t(eps_c, n_d):
+    xc, dxc = make_grid(n_d)
+    n_steps = int(round(T0 / eps_c))
+    psi_c = evolve(initial_psi(xc), propagator(xc, eps_c), dxc, n_steps)
+    return np.arange(n_steps + 1) * eps_c, (np.abs(psi_c) ** 2).sum(axis=1) * dxc
 
-%--------------------------------------------------------------------
+
+plt.figure(figsize=(6, 4))
+for n, n_d in ((16, 600), (512, 600), (128, 150)):
+    t_c, N_c = norm_vs_t(T0 / n, n_d)
+    plt.semilogy(t_c, N_c, label=rf"$\epsilon = T_0/{n}$, $N_D = {n_d}$")
+    print(f"eps = T0/{n}, N_D = {n_d}: N(T0) = {N_c[-1]:.3e}")
+plt.xlabel("time $t$")
+plt.ylabel(r"$\mathcal{N}(t)$")
+plt.legend()
+plt.tight_layout()
+plt.savefig("figs/norm.pdf")
+plt.show()
+
+for n_d in (600, 1200):
+    for n in range(100, 1000, 4):
+        if abs(norm_vs_t(T0 / n, n_d)[1][-1] - 1) > 1e-2:
+            print(f"N_D = {n_d}: fails first at eps = T0/{n} = {T0 / n:.4f}")
+            break
+\end{lstlisting}
+
 \section*{AI use appendix}
-\textcolor{red}{[To be written.]}
+I used an AI assistant (Claude, Anthropic) only for debugging.
+When my code raised errors or gave unexpected output, I showed the relevant code and error messages to the assistant and asked it to help locate the cause.
+I then checked each suggested fix myself before applying it.
 
 \end{document}
